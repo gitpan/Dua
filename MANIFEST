@@ -1,0 +1,10 @@
+Changes
+Dua.pm
+Dua.xs
+MANIFEST
+README
+README.duaperl
+Makefile.PL
+dualib/Makefile
+dualib/dua.c
+dualib/dua.h
