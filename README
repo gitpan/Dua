@@ -1,5 +1,5 @@
 
-Perl5 DUA Extension Module - Version 1.0
+Perl5 DUA Extension Module 
 
 This module is based heavily on Eric Douglas' duaperl version 1.0a3,
 and is basically a conversion of the duaperl.mus file to the XS form.

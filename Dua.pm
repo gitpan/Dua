@@ -14,7 +14,7 @@ require DynaLoader;
 @EXPORT_OK = qw(dua_errstr dua_settmout dua_open dua_modrdn dua_delete
 		dua_close dua_moveto dua_add dua_modattr dua_show dua_find);
 
-$VERSION = '1.0';
+$VERSION = '1.1';
 
 bootstrap Dua $VERSION;
 
