@@ -1,5 +1,10 @@
 Revision history for Perl extension Dua.
 
+2.1 Tue May 27 12:19:35 1997
+
+	- updated documentation and modified modattr to allow deletion of
+	  attributes.
+
 2.0 Tue May 20 16:22:36 1997
 
 	- converted version 1.x to object class.

@@ -429,7 +429,6 @@ char *value;
       /* EMPTY */ ;
     if ((temp->next = (atlist_t *) malloc (sizeof (atlist_t))) == NULL)
       fatal (DUA_ERR_MALLOC);
-    
     temp = temp->next;
   }
   
@@ -468,10 +467,9 @@ atlist_t *atlist;
 * dua_add
 *      Add the attribute/value pairs in `atlist' to the DIT
 *      specified by `rdn'. This code is paralleled (for the
-*      most part) in dua_modattr () & now dua_delattr. 
+*      most part) in dua_modattr (). 
 *      If a significant bug fix is applied to this code, check
-*      in dua_modattr () & dua_delattr () to see
-*      if it also needs to be applied there.
+*      in dua_modattr () to see if it also needs to be applied there.
 *
 * Side effects: none
 ************************************************************************/
@@ -550,7 +548,7 @@ atlist_t *attrs;
 * dua_modattr
 *      Modify the attributes for rdn given in attrs.
 *      This code should parallel (for the most part) that
-*      in dua_add () & dua_delattr. If a significant bug fix is required in
+*      in dua_add (). If a significant bug fix is required in
 *      in either function, then check the other functions
 *      to see if it needs to be changed there.
 *
@@ -588,7 +586,6 @@ atlist_t *attrs;
       fatal (DUA_ERR_MALLOC);
 
     /* initialize all fields to non-garbage values */
-    mods[i]->mod_op = LDAP_MOD_REPLACE;
     mods[i]->mod_next = (LDAPMod *) 0;
     /*
      * this is a pointer assignment only, do not free
@@ -596,88 +593,16 @@ atlist_t *attrs;
      * by dua_freelist () by our parent caller.
      */
     mods[i]->mod_type = temp->attr;
-    mods[i]->mod_values = split_multi (temp->value);
-    
-    i++;
-  }
-
-  /* NULL terminate the end of the mods list */
-  mods[i] = (LDAPMod *) 0;
-
-  /* initiate the add operation */
-  id = ldap_modify (session->dua_ld, dua_mkdn(session,rdn), mods);
-  
-  /* wait for result */
-  retval = 1;
-  retval = ldap_result (session->dua_ld, id, 0, &session->dua_tv, &result);
-  
-  /* check result error */
-  if (ldap_result2error (session->dua_ld, result, 1) != LDAP_SUCCESS) {
-    set_ldap_err (session,session->dua_ld->ld_errno);
-    retval = 0;
-  }
-  
-  /* free the memory associated with the mods array */
-  for (--i; i > 0; i--) {
-    free_vector (mods[i]->mod_values);
-    free (mods[i]);
-  }
-  return retval;
-}
-
-
-/************************************************************************
-* dua_delattr
-*      Delete the attributes for rdn given in attrs.
-*      This code should parallel (for the most part) that
-*      in dua_add () & dua_modattr. If a significant bug fix is required in
-*      in either function, then check the other functions
-*      to see if it needs to be changed there.
-*
-* Side effects: may call fatal ().
-************************************************************************/
-int 
-dua_delattr (session, rdn, attrs)
-ldap_session_t *session;
-char *rdn;
-atlist_t *attrs;
-{
-  register atlist_t *temp;
-  LDAPMod **mods;
-  register int i;
-  int id, retval;
-  LDAPMessage *result;
-
-  /* start out with enough space for 20 attributes,
-   * we'll malloc more when we need it.
-   */
-  if ((mods = (LDAPMod **) malloc (sizeof (LDAPMod)*20)) == NULL)
-    fatal (DUA_ERR_MALLOC);
-
-  i = 0;
-  for (temp = attrs; temp != NULL; temp = temp->next) {
-    /* malloc more pointer space if we're on a 
-     * multiple of 20
-     */
-    if (i % 20 == 0)
-      if ((mods = (LDAPMod **) realloc (mods, sizeof (LDAPMod)*20)) == NULL)
-	fatal (DUA_ERR_MALLOC);
-
-    /* malloc space for this mod */
-    if ((mods[i] = (LDAPMod *) malloc (sizeof (LDAPMod))) == NULL)
-      fatal (DUA_ERR_MALLOC);
-
-    /* initialize all fields to non-garbage values */
-    mods[i]->mod_op = LDAP_MOD_DELETE;
-    mods[i]->mod_next = (LDAPMod *) 0;
-    /*
-     * this is a pointer assignment only, do not free
-     * the space pointed to by temp, as it will be free'd
-     * by dua_freelist () by our parent caller.
-     */
-    mods[i]->mod_type = temp->attr;
-    mods[i]->mod_values = NULL;
-    
+    if (*temp->value == '\0')
+    {
+      mods[i]->mod_op = LDAP_MOD_DELETE;
+      mods[i]->mod_values = NULL;
+    }
+    else
+    {
+      mods[i]->mod_op = LDAP_MOD_REPLACE;
+      mods[i]->mod_values = split_multi (temp->value);
+    }
     i++;
   }
 

@@ -9,7 +9,7 @@ to Eric's code, in order to allow multiple instances of the class. Basically
 I bundled all the global data structures into one structure 'ldap_session_t'
 which is passed to the dua functions.
 
-I also added a dua_delattr function/method to allow attributes to be deleted
+I also modified dua_delattr function/method to allow attributes to be deleted
 from an entry, it's a little crude as it deletes the attribute completely
 rather than allowing selective removal of values.
 

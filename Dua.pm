@@ -15,7 +15,7 @@ require DynaLoader;
 		dua_modrdn dua_delete dua_close dua_moveto dua_add
 		dua_modattr dua_delattr dua_find dua_show);
 
-$VERSION = '2.0';
+$VERSION = '2.1';
 
 bootstrap Dua $VERSION;
 
@@ -49,25 +49,19 @@ sub error
   dua_errstr($self->{session});
 }
 
+sub settmout
+{
+  my($self, $seconds, $microseconds) = @_;
+
+  return undef unless defined $self->{session};
+  dua_settmout($self->{session},$seconds, $microseconds);
+}
+
 sub open
 {
   my($self,$dsa,$port,$bind_dn,$bind_passwd) = @_;
   return undef unless defined $self->{session};
   dua_open($self->{session},$dsa,$port,$bind_dn,$bind_passwd);
-}
-
-sub modrdn 
-{
-  my($self,$dn,$newrdn) = @_;
-  return undef unless defined $self->{session};
-  dua_modrdn($self->{session},$dn,$newrdn);
-}
-
-sub delete
-{
-  my($self,$rdn) = @_;
-  return undef unless defined $self->{session};
-  dua_delete($self->{session},$rdn);
 }
 
 sub close
@@ -84,6 +78,20 @@ sub moveto
   dua_moveto($self->{session},$dn);
 }
 
+sub modrdn 
+{
+  my($self,$dn,$newrdn) = @_;
+  return undef unless defined $self->{session};
+  dua_modrdn($self->{session},$dn,$newrdn);
+}
+
+sub delete
+{
+  my($self,$rdn) = @_;
+  return undef unless defined $self->{session};
+  dua_delete($self->{session},$rdn);
+}
+
 sub add
 {
   my($self,$rdn,@args) = @_;
@@ -96,13 +104,6 @@ sub modattr
   my($self,$rdn,@args) = @_;
   return undef unless defined $self->{session};
   dua_modattr($self->{session},$rdn,@args);
-}
-
-sub delattr
-{
-  my($self,$rdn,@args) = @_;
-  return undef unless defined $self->{session};
-  dua_delattr($self->{session},$rdn,@args);
 }
 
 sub find
@@ -137,7 +138,11 @@ Dua - DUA/Perl interface to an X.500 directory
 
 =head1 SUBROUTINES
 
-  dua_open($dsa, $port, $dn, $passwd)
+  $dua = new Dua() 
+
+      Creates a new instance of a Dua object.
+
+  $dua->open($dsa, $port, $dn, $passwd)
 
       Open an association to the DSA  specified  in  dsa  and
       running  on  the  port specified by port. If no port is
@@ -146,34 +151,49 @@ Dua - DUA/Perl interface to an X.500 directory
       credentials supplied in passwd. Currently, only  simple
       authentication is supported.
 
-  dua_moveto($dn)
+  $dua->error()
+
+      This routine returns a description of the problem when an error
+      occurs.
+
+  $dua->settmout($seconds, $microseconds)
+
+      This routine sets the asynchronous timeout value for
+      all operations.  The default is 30 seconds.
+
+  $dua->close()
+
+      This routine closes the association to the X.500 DSA.
+
+  $dua->moveto($dn)
 
       Move to the location in the DIT specified by dn.
 
-  dua_modrdn($rdn, $newrdn)
+  $dua->modrdn($rdn, $newrdn)
 
       Modify the object whose RDN is rdn to newrdn.
 
-  dua_delete($rdn)
+  $dua->delete($rdn)
 
       Delete the object specified by rdn from the DIT.
 
-  dua_add($rdn, %attrs)
+  $dua->add($rdn, %attrs)
 
       Add a new object to the DIT with an RDN of rdn with the
       attributes attrs.
 
-  dua_modattr($rdn, %attrs)
+  $dua->modattr($rdn, %attrs)
 
       Modify the object specified by rdn with the  attribute-
-      value pairs in attrs.
+      value pairs in attrs. If a value is set to an empty string
+      the associated attribute is deleted from the entry.
 
-  dua_show($rdn)
+  $dua->show($rdn)
 
       Returns in an  associative  array  the  attribute-value
       pairs found in the object specified by rdn.
 
-  dua_find($rdn, $filter, $scope, $all)
+  $dua->find($rdn, $filter, $scope, $all)
 
       Returns in an associative array the attribute-value pairs found
       beneath the object specified by rdn. filter is a string
@@ -188,23 +208,9 @@ Dua - DUA/Perl interface to an X.500 directory
       the attribute-value pairs of all match- ing objects are to be
       returned.  This routine is used for non-leaf objects.
 
-  dua_close()
-
-      This routine closes the association to the X.500 DSA.
-
-  dua_settmout($seconds, $microseconds)
-
-      This routine sets the asynchronous timeout value for
-      all operations.  The default is 30 seconds.
-
-  dua_errstr()
-
-      This routine returns a description of the problem when an error
-      occurs.
-
 =head1 NOTES
 
- dua_moveto() determines the path which is prepended to the rdn of all
+ $dua->moveto() determines the path which is prepended to the rdn of all
  other functions. This simulates ``standing'' at a particular position
  in the DIT, and being able to specify DN's relative to the current
  position. If a fully-qualified DN is more appropriate for a
@@ -224,11 +230,11 @@ Dua - DUA/Perl interface to an X.500 directory
 
 =head1 RETURN VALUES
 
-  All routines except dua_show() and dua_find() will return 1 on
+  All routines except $dua->show() and $dua->find() will return 1 on
   success, 0 otherwise. For those routines which return associative
-  arrays ( dua_show() and dua_find() ), the array is returned
+  arrays ( $dua->show() and $dua->find() ), the array is returned
   empty if an error occurs. The description of the problem may be
-  obtained by use of dua__errstr().
+  obtained by use of $dua->error().
 
 
 =head1 AUTHOR
