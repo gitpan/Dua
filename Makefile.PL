@@ -4,9 +4,9 @@ use ExtUtils::MakeMaker;
 WriteMakefile(
     'NAME'	=> 'Dua',
     'VERSION_FROM' => 'Dua.pm', # finds $VERSION
-    'LIBS'	=> ['-L/bham/pd/packages/ldap/lib -lldap -llber'], # e.g.,'-lm' 
+    'LIBS'	=> ['-L/bham/pd/packages/ldap-3.1/lib -lldap -llber'], # e.g.,'-lm' 
     'DEFINE'	=> '',     # e.g., '-DHAVE_SOMETHING' 
-    'INC'	=> '-Idualib -I/bham/pd/packages/ldap/include', 
+    'INC'	=> '-Idualib -I/bham/pd/packages/ldap-3.1/include', 
     'MYEXTLIB'  => 'dualib/libdua$(LIB_EXT)',
     'clean'      => { FILES => 'dualib/*.o dualib/*.a' },
 );

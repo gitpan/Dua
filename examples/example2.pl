@@ -11,7 +11,7 @@ use Dua qw(dua_create dua_open dua_errstr dua_find dua_show
 # Where to contact...
 
 $dsa = "ldap.cs.bham.ac.uk";
-$port = undef;                # Defaults to "ldap"
+$port = 0;                # Defaults to "ldap"
 
 # Who to bind as...anonymous in this case...
 $bind_dn = "";

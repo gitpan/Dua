@@ -196,3 +196,48 @@ PPCODE:
     temp = temp->next;
   }
   dua_freelist (atlist);
+
+void
+dua_attribute (session,rdn,attr)
+ldap_session_t *session
+char *rdn
+char *attr
+PREINIT:
+  int scope = LDAP_SCOPE_BASE;
+  char *filter = "objectclass=*";
+  char attrsonly = 0;
+  char *attrs[2];
+
+  struct berval **values;
+  char **attribute;
+  LDAPMessage *result, *entry;
+  int i;
+PPCODE:
+
+  attrs[0] = attr;
+  attrs[1] = NULL;
+  if (ldap_search_s(session->dua_ld,rdn,scope,filter,attrs,attrsonly,&result)
+      != LDAP_SUCCESS) {
+      ldap_perror(session->dua_ld,"ldap_search_s");
+      return;
+  }
+
+  if (ldap_count_entries(session->dua_ld,result) != 1) {
+    session->dua_errstr = "More than one entry returned";
+    return;
+  }
+
+  if ((entry = ldap_first_entry(session->dua_ld,result)) == NULL) {
+    session->dua_errstr = ldap_err2string(session->dua_ld->ld_errno);
+    return;
+  }
+
+  attribute = attrs;
+  while(*attribute) {
+    values = ldap_get_values_len(session->dua_ld,entry,*attribute);
+    for(i = 0; i < ldap_count_values_len(values); i++) {
+      XPUSHs(sv_2mortal(newSVpv(values[i]->bv_val,values[i]->bv_len)));
+    }
+    ldap_value_free_len (values);
+    attribute++;
+  }

@@ -13,9 +13,9 @@ require DynaLoader;
 @EXPORT = qw();
 @EXPORT_OK = qw(dua_create dua_free dua_errstr dua_settmout dua_open
 		dua_modrdn dua_delete dua_close dua_moveto dua_add
-		dua_modattr dua_delattr dua_find dua_show);
+		dua_modattr dua_delattr dua_find dua_show dua_attribute);
 
-$VERSION = '2.1';
+$VERSION = '2.2';
 
 bootstrap Dua $VERSION;
 
@@ -61,6 +61,7 @@ sub open
 {
   my($self,$dsa,$port,$bind_dn,$bind_passwd) = @_;
   return undef unless defined $self->{session};
+  $port = 0 unless defined $port;
   dua_open($self->{session},$dsa,$port,$bind_dn,$bind_passwd);
 }
 
@@ -119,6 +120,14 @@ sub show
   return undef unless defined $self->{session};
   dua_show($self->{session},$rdn);
 }
+
+sub attribute
+{
+  my($self,$rdn,$attribute) = @_;
+  return undef unless defined $self->{session};
+  dua_attribute($self->{session},$rdn,$attribute);
+}
+
 
 __END__
 # Below is the stub of documentation for your module. You better edit it!
@@ -192,6 +201,14 @@ Dua - DUA/Perl interface to an X.500 directory
 
       Returns in an  associative  array  the  attribute-value
       pairs found in the object specified by rdn.
+
+  $dua->attribute($rdn,$attribute)
+
+      Returns an array of values for the specified attribute
+      found in the object specified by rdn. 
+
+      This method maybe used to retrieve binary attributes not
+      accessible via the show method.
 
   $dua->find($rdn, $filter, $scope, $all)
 

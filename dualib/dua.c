@@ -49,7 +49,9 @@
 #endif /* SVR4 */
 #include <sys/time.h>
 #include "EXTERN.h"
+
 #include "perl.h"
+
 #include "dua.h"
 #include <lber.h>
 #include <ldap.h>
