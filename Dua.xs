@@ -10,41 +10,64 @@ extern "C" {
 
 #include "dua.h"
 
-extern char *dua_errstr;
-extern char **dua_pos;
-
 MODULE = Dua PACKAGE = Dua
 
 PROTOTYPES: ENABLE
 
-void
-dua_init()
+ldap_session_t *
+dua_create()
 CODE:
-     /* initialize initial "position" in the DIT */
+     /* initialize initial "position" in the DIT 
      /* any call requiring a DN will start from the ROOT until
       * the user calls dua_moveto.
       */
-     if ((dua_pos = (char **) malloc (sizeof (char **))) == NULL)
-	  fatal (DUA_ERR_MALLOC);
-     *dua_pos = NULL;
+     ldap_session_t *session;
+     if ((session = (ldap_session_t *)malloc(sizeof(ldap_session_t))) == NULL)
+         fatal (DUA_ERR_MALLOC);
+
+    session->dua_pos = NULL;
+    if ((session->dua_pos = (char **)malloc(sizeof(char **))) == NULL) {
+      free(session);
+      fatal (DUA_ERR_MALLOC);
+    }
+
+     *session->dua_pos = NULL;
+     session->dua_dn = NULL;
+     session->dua_errstr = "";
 
      /* initialize default values for asynchronous timeout */
-     dua_settmout(30L,0L);
-    
-char *
-dua_errstr()
+     dua_settmout(session,30L,0L);
+     RETVAL = session;
+OUTPUT:
+     RETVAL
+
+void
+dua_free(session)
+ldap_session_t *session
 CODE:
-   RETVAL = dua_errstr;
+    if (session != NULL) {
+       if (session->dua_pos != NULL)
+           free(session->dua_pos);
+	free(session);	
+    }    
+
+char *
+dua_errstr(session)
+ldap_session_t *session
+CODE:
+   RETVAL = session->dua_errstr;
 OUTPUT:
    RETVAL
 
 int
-dua_settmout (sec, usec)
+dua_settmout (session, sec, usec)
+ldap_session_t *session
 long sec
 long usec
  
 int
-dua_open (dsa, port, dn, passwd)
+dua_open (session, dsa, port, dn, passwd)
+ldap_session_t *session
 char *dsa
 int port
 char *dn
@@ -52,63 +75,89 @@ char *passwd
 
 
 int
-dua_modrdn (dn, newrdn)
+dua_modrdn (session, dn, newrdn)
+ldap_session_t *session
 char *dn
 char *newrdn
 
 int
-dua_delete (rdn)
+dua_delete (session, rdn)
+ldap_session_t *session
 char *rdn
 
 int
-dua_close ()
+dua_close (session)
+ldap_session_t *session
 
 int
-dua_moveto (dn)
+dua_moveto (session, dn)
+ldap_session_t *session
 char *dn
 
 int 
-dua_add (rdn, ...)
+dua_add (session, rdn, ...)
+ldap_session_t *session
 char *rdn
 CODE:
 {
   atlist_t *atlist;
   register int i;
-  if ((items - 1) % 2 != 0) 
+
+  if ((items - 2) % 2 != 0)
   {
     croak ("Number of attribute/value pairs must be even");
   }
   atlist = NULL;
-  for(i=1;i<items;(i++,i++))
+  for(i=2;i<items;(i++,i++))
     dua_addpair(&atlist,(char *)SvPV(ST(i), na),(char *)SvPV(ST(i+1), na));
-  RETVAL = dua_add (rdn, atlist);
+  RETVAL = dua_add (session, rdn, atlist);
   dua_freelist (atlist);
 }
 OUTPUT:
   RETVAL
 
 int 
-dua_modattr (rdn, ...)
+dua_modattr (session, rdn, ...)
+ldap_session_t *session
 char *rdn
 CODE:
 {
   atlist_t *atlist;
   register int i;
-  if ((items - 1) % 2 != 0) 
+  if ((items - 2) % 2 != 0) 
   {
     croak ("Number of attribute/value pairs must be even");
   }
   atlist = NULL;
-  for(i=1;i<items;(i++,i++))
+  for(i=2;i<items;(i++,i++))
     dua_addpair(&atlist,(char *)SvPV(ST(i), na),(char *)SvPV(ST(i+1), na));
-  RETVAL = dua_modattr (rdn, atlist);
+  RETVAL = dua_modattr (session, rdn, atlist);
+  dua_freelist (atlist);
+}
+OUTPUT:
+  RETVAL
+
+int 
+dua_delattr (session, rdn, ...)
+ldap_session_t *session
+char *rdn
+CODE:
+{
+  atlist_t *atlist;
+  register int i;
+
+  atlist = NULL;
+  for(i=2;i<items;i++)
+    dua_addpair(&atlist,(char *)SvPV(ST(i), na),"\0");
+  RETVAL = dua_delattr (session, rdn, atlist);
   dua_freelist (atlist);
 }
 OUTPUT:
   RETVAL
 
 void
-dua_find (rdn, filter, scope, all)
+dua_find (session, rdn, filter, scope, all)
+ldap_session_t *session
 char *rdn
 char *filter
 int scope
@@ -118,7 +167,7 @@ PREINIT:
   register atlist_t *temp;
 PPCODE:
   atlist = (atlist_t *) 0;
-  dua_find(rdn,filter,scope,1,all,&atlist);
+  dua_find(session,rdn,filter,scope,1,all,&atlist);
   temp = atlist;
   while (temp != NULL) 
   {
@@ -130,14 +179,15 @@ PPCODE:
 
 
 void
-dua_show (rdn)
+dua_show (session,rdn)
+ldap_session_t *session
 char *rdn
 PREINIT:
   atlist_t *	atlist;
   register atlist_t *temp;
 PPCODE:
   atlist = (atlist_t *) 0;
-  dua_find(rdn,NULL,0,0,0,&atlist);
+  dua_find(session,rdn,NULL,0,0,0,&atlist);
   temp = atlist;
   while (temp != NULL) 
   {

@@ -4,19 +4,18 @@ Perl5 DUA Extension Module
 This module is based heavily on Eric Douglas' duaperl version 1.0a3,
 and is basically a conversion of the duaperl.mus file to the XS form.
 
-I tried very hard not modify any of Eric's code, in order to keep things
-as portable as possible. The only change I had to make was to dualib/dua.h
-to #define fatal as croak to work with Perl 5.
+Unlike version 1.x of the module this implementation required some changes
+to Eric's code, in order to allow multiple instances of the class. Basically
+I bundled all the global data structures into one structure 'ldap_session_t'
+which is passed to the dua functions.
 
-I added two additional subroutines, the first duainit is not exported but
-is called by the Dua modules bootstrap to initialise a few things. The
-second is dua_errstr which returns the current error string. I did this
-as I couldn't work out how to access a constant located in the C code from
-Perl.
+I also added a dua_delattr function/method to allow attributes to be deleted
+from an entry, it's a little crude as it deletes the attribute completely
+rather than allowing selective removal of values.
 
-I may in the future created an Object Oriented module, but that would
-probably require some major changes to dua.c in order to accomodate
-multiple instances of the class.
+There isn't a 'make test' as it was too difficult to come up with a suitable
+set of tests. There are a couple of examples in the example directory
+illustrating the basic use of the module.
 
 INSTALLATION
 
@@ -25,8 +24,7 @@ i) You'll need to modify the LIBS section Makefile.PL to point to your
 
 ii) You'll also need to modify dualib/Makefile to point to your PERL directory
     & you LDAP include files. (Note: The perl directory is required as dua.c
-    includes perl.h - Although it doesn't require this to compile I didn't
-    remove the line to avoid any modifications to the original code.)
+    includes perl.h)
 
 iii)
 	perl Makefile.PL

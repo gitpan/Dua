@@ -1,8 +1,12 @@
 #!/bham/pd/bin/perl -w
 #
-# This is a just a quick example to illustrate the use of the Dua module.
+# This is a just a quick example to illustrate the use of the Dua module
+# without using objects. It's very similar to version 1 of the Dua module
+# except each function has an additional argument 'session' which is created
+# by dua_create and destroyed by dua_free.
 #
-use Dua qw(dua_open dua_find dua_show dua_close);
+use Dua qw(dua_create dua_open dua_errstr dua_find dua_show 
+	   dua_close dua_free);
 
 # Where to contact...
 
@@ -13,10 +17,14 @@ $port = undef;                # Defaults to "ldap"
 $bind_dn = "";
 $bind_passwd = "";
 
+# Create a session structure.
+
+$session = dua_create() || die('Unable to create dua');
+
 # Attempt to bind to the DSA...
 
-dua_open($dsa, $port, $bind_dn, $bind_passwd) || 
-     die("Can't connect to  DUA: ",Dua::dua_errstr());
+dua_open($session,$dsa, $port, $bind_dn, $bind_passwd) || 
+     die("Can't connect to  DUA: ",dua_errstr($session));
 
 # Where to search from...
 $base = "\@c=gb\@o=The University of Birmingham\@ou=Computer Science";
@@ -29,12 +37,12 @@ $all = 0;       # Only return the DN's of matching objects.
 
 # Do the search
 
-%results = dua_find($base, $filter,$scope,$all);
+%results = dua_find($session,$base, $filter,$scope,$all);
 
 if (! %results ) 
 {
   print "Nothing found\n";
-  dua_close();
+  dua_close($session);
   exit;
 }
 
@@ -52,7 +60,7 @@ foreach $dn (values %results)
   $dn = "@" . join("@",reverse(split(/,\s*/,$dn)));
   $dn =~ s/\"//g;
 
-  %results = dua_show($dn);
+  %results = dua_show($session,$dn);
   if (! %results)
   { print "No details found\n"; }
   else 
@@ -61,4 +69,5 @@ foreach $dn (values %results)
   }
 }
 print "\n";
-dua_close();
+dua_close($session);
+dua_free($session);

@@ -11,20 +11,114 @@ require DynaLoader;
 # names by default without a very good reason. Use EXPORT_OK instead.
 # Do not simply export all your public functions/methods/constants.
 @EXPORT = qw();
-@EXPORT_OK = qw(dua_errstr dua_settmout dua_open dua_modrdn dua_delete
-		dua_close dua_moveto dua_add dua_modattr dua_show dua_find);
+@EXPORT_OK = qw(dua_create dua_free dua_errstr dua_settmout dua_open
+		dua_modrdn dua_delete dua_close dua_moveto dua_add
+		dua_modattr dua_delattr dua_find dua_show);
 
-$VERSION = '1.1';
+$VERSION = '2.0';
 
 bootstrap Dua $VERSION;
 
 # Preloaded methods go here.
 
-dua_init();
-
 # Autoload methods go after =cut, and are processed by the autosplit program.
 
 1;
+
+package Dua;
+
+sub new
+{
+  my($type,$dsa,$port,$bind_dn,$bind_passwd) = @_;
+  my $self = {};
+  $self->{session} = dua_create();
+  bless $self;
+}
+
+sub DESTROY
+{
+  my $self = shift;
+  return undef unless defined $self->{session};
+  dua_free($self->{session});
+}
+
+sub error
+{
+  my $self = shift;
+  return "No Session" unless defined $self->{session};
+  dua_errstr($self->{session});
+}
+
+sub open
+{
+  my($self,$dsa,$port,$bind_dn,$bind_passwd) = @_;
+  return undef unless defined $self->{session};
+  dua_open($self->{session},$dsa,$port,$bind_dn,$bind_passwd);
+}
+
+sub modrdn 
+{
+  my($self,$dn,$newrdn) = @_;
+  return undef unless defined $self->{session};
+  dua_modrdn($self->{session},$dn,$newrdn);
+}
+
+sub delete
+{
+  my($self,$rdn) = @_;
+  return undef unless defined $self->{session};
+  dua_delete($self->{session},$rdn);
+}
+
+sub close
+{
+  my $self = shift;
+  return undef unless defined $self->{session};
+  dua_close($self->{session});
+}
+
+sub moveto
+{
+  my($self,$dn) = @_;
+  return undef unless defined $self->{session};
+  dua_moveto($self->{session},$dn);
+}
+
+sub add
+{
+  my($self,$rdn,@args) = @_;
+  return undef unless defined $self->{session};
+  dua_add($self->{session},$rdn,@args);
+}
+
+sub modattr
+{
+  my($self,$rdn,@args) = @_;
+  return undef unless defined $self->{session};
+  dua_modattr($self->{session},$rdn,@args);
+}
+
+sub delattr
+{
+  my($self,$rdn,@args) = @_;
+  return undef unless defined $self->{session};
+  dua_delattr($self->{session},$rdn,@args);
+}
+
+sub find
+{
+  my($self,$rdn,$filter,$scope,$all) = @_;
+  return undef unless defined $self->{session};
+  dua_find($self->{session},$rdn,$filter,$scope,$all);
+}
+
+sub show
+{
+  my($self,$rdn) = @_;
+  return undef unless defined $self->{session};
+  dua_show($self->{session},$rdn);
+}
+
 __END__
 # Below is the stub of documentation for your module. You better edit it!
 
@@ -34,9 +128,7 @@ Dua - DUA/Perl interface to an X.500 directory
 
 =head1 SYNOPSIS
 
-  use Dua qw(dua_open dua_moveto dua_modrdn dua_delete 
-	     dua_add dua_modattr dua_show dua_find
-	     dua_close dua_settmout dua_errstr);
+  use Dua;
 
 =head1 DESCRIPTION
 

@@ -32,6 +32,11 @@
  * SUCH DAMAGE.
  */
 
+/*
+ * Modified by S.M.Pillinger Tue May 20 1997 to allow multiple instances
+ * of ldap session to exist.
+ */
+
 /************************************************************************
 * $Id: dua.c,v 1.16 1994/02/28 23:46:05 ericd Exp $
 * dua.c:Perl/LDAP interface routines
@@ -57,15 +62,19 @@
 /************************************************************************
 * EXPORT VARIABLES FROM THIS MODULE
 ************************************************************************/
+/* No Longer needed - S.M.Pillinger
 char **dua_pos = (char **) NULL;
 char *dua_dn = (char *) NULL;
 char *dua_errstr = "";
 struct timeval dua_tv;
+*/
 
 /************************************************************************
 * INTERNAL VARIABLES FOR THIS MODULE
 ************************************************************************/
+/* No Longer needed - S.M.Pillinger
 static LDAP *dua_ld;
+*/
 
 /************************************************************************
 * MODULE ROUTINES
@@ -78,16 +87,15 @@ static LDAP *dua_ld;
 * Side effects: sets dua_tv.dua_tv_sec and dua_tv.tv_usec, global variables.
 ************************************************************************/
 int
-dua_settmout (sec, usec)
+dua_settmout (session, sec, usec)
+ldap_session_t *session;
 long sec;
 long usec;
 {
-     extern struct timeval dua_tv;
-
-     dua_tv.tv_sec = sec;
-     dua_tv.tv_usec = usec;
-
-     return 1;
+  session->dua_tv.tv_sec = sec;
+  session->dua_tv.tv_usec = usec;
+  
+  return 1;
 }
  
 /************************************************************************
@@ -97,35 +105,33 @@ long usec;
 * Side effects: sets dua_errstr.
 ************************************************************************/
 int
-dua_open (dsa, port, dn, passwd)
+dua_open (session, dsa, port, dn, passwd)
+ldap_session_t *session;
 char *dsa;
 int port;
 char *dn;
 char *passwd;
 {
-     extern LDAP *dua_ld;
-     extern char *dua_errstr;
-     extern struct timeval dua_tv;
-     LDAPMessage *result;
-     int id;
-
-     if (port == 0)
-	  port = LDAP_PORT;
-
-     if ((dua_ld = ldap_open (dsa, port)) == NULL) {
-	  dua_errstr = "Could not open connection to LDAP server";
-	  return 0;
-     }
-
-     id = ldap_simple_bind (dua_ld, dua_mkdn (dn), passwd);
-
-     ldap_result (dua_ld, id, 1, &dua_tv, &result);
-
-     if (ldap_result2error (dua_ld, result, 1) != LDAP_SUCCESS) {
-	  set_ldap_err (dua_ld->ld_errno);
-	  return 0;
-     }
-     return 1;
+  LDAPMessage *result;
+  int id;
+  
+  if (port == 0)
+    port = LDAP_PORT;
+  
+  if ((session->dua_ld = ldap_open (dsa, port)) == NULL) {
+    session->dua_errstr = "Could not open connection to LDAP server";
+    return 0;
+  }
+  
+  id = ldap_simple_bind (session->dua_ld, dua_mkdn(session,dn), passwd);
+  
+  ldap_result (session->dua_ld, id, 1, &session->dua_tv, &result);
+  
+  if (ldap_result2error (session->dua_ld, result, 1) != LDAP_SUCCESS) {
+    set_ldap_err (session,session->dua_ld->ld_errno);
+    return 0;
+  }
+  return 1;
 }
 
 
@@ -136,26 +142,25 @@ char *passwd;
 * Side effects: none.
 ************************************************************************/
 int
-dua_modrdn (dn, newrdn)
+dua_modrdn (session, dn, newrdn)
+ldap_session_t *session;
 char *dn;
 char *newrdn;
 {
-     extern LDAP *dua_ld;
-     int id, retval;
-     extern struct timeval dua_tv;
-     LDAPMessage *result;
-
-     id = ldap_modrdn (dua_ld, dua_mkdn (dn), newrdn);
-     
-     retval = 1;
-     retval = ldap_result (dua_ld, id, 1, &dua_tv, &result);
-
-     if (ldap_result2error (dua_ld, result, 1) != LDAP_SUCCESS) {
-	  set_ldap_err (dua_ld->ld_errno);
-	  retval = 0;
-     }
-
-     return retval;
+  int id, retval;
+  LDAPMessage *result;
+  
+  id = ldap_modrdn (session->dua_ld, dua_mkdn(session,dn), newrdn);
+  
+  retval = 1;
+  retval = ldap_result (session->dua_ld, id, 1, &session->dua_tv, &result);
+  
+  if (ldap_result2error (session->dua_ld, result, 1) != LDAP_SUCCESS) {
+    set_ldap_err (session,session->dua_ld->ld_errno);
+    retval = 0;
+  }
+  
+  return retval;
 }
 
 
@@ -166,25 +171,24 @@ char *newrdn;
 * Side effects: none.
 ************************************************************************/
 int
-dua_delete (rdn)
+dua_delete (session, rdn)
+ldap_session_t *session;
 char *rdn;
 {
-     extern LDAP *dua_ld;
-     int id, retval;
-     extern struct timeval dua_tv;
-     LDAPMessage *result;
-
-     id = ldap_delete (dua_ld, dua_mkdn (rdn));
-
-     retval = 1;
-     retval = ldap_result (dua_ld, id, 1, &dua_tv, &result);
-
-     if (ldap_result2error (dua_ld, result, 1) != LDAP_SUCCESS) {
-	  set_ldap_err (dua_ld->ld_errno);
-	  retval = 0;
-     }
-
-     return retval;
+  int id, retval;
+  LDAPMessage *result;
+  
+  id = ldap_delete (session->dua_ld, dua_mkdn(session,rdn));
+  
+  retval = 1;
+  retval = ldap_result (session->dua_ld, id, 1, &session->dua_tv, &result);
+  
+  if (ldap_result2error (session->dua_ld, result, 1) != LDAP_SUCCESS) {
+    set_ldap_err (session,session->dua_ld->ld_errno);
+    retval = 0;
+  }
+  
+  return retval;
 }
 
 
@@ -195,13 +199,12 @@ char *rdn;
 * Side effects: none.
 ************************************************************************/
 int
-dua_close ()
+dua_close (session)
+ldap_session_t *session;
 {
-     extern LDAP *dua_ld;
-
-     if (ldap_unbind (dua_ld) < 0)
-	  return set_ldap_err (dua_ld->ld_errno);
-     return 1;
+  if (ldap_unbind(session->dua_ld) < 0)
+    return set_ldap_err (session,session->dua_ld->ld_errno);
+  return 1;
 }
 
 /************************************************************************
@@ -211,70 +214,68 @@ dua_close ()
 * Side effects: sets `dua_pos'.
 ************************************************************************/
 int
-dua_moveto (dn)
+dua_moveto (session,dn)
+ldap_session_t *session;
 char *dn;
 {
-     extern char **dua_pos;
-     register char **newtemp, **oldtemp;
-     char **new;
-     u_int new_size;
-
-     if (*dn == '@') {
-	  /* Move to an absolute position in the DIT */
-	  free_vector (dua_pos);
-
-	  if (strlen (dn) == 1) {
-	       /* Move to root */
-	       if ((dua_pos = (char **) malloc (sizeof (char **))) == NULL)
-		    fatal (DUA_ERR_MALLOC);
-	       *dua_pos = NULL;
-	       return 1;
-	  }
-
-	  /* Make a stack by calling dishdn2dn () */
-	  dua_pos = dishdn2dn (dn);
-	  return 1;
-
-     } else {
-	  /* Move relative to our current position. Create
-	   * a new stack like above, but append current stack
-	   * to end by copying the strings.
-	   */
-	  new = dishdn2dn (dn);
-
-	  new_size = 1;
-	  /* Count number of elements in new */
-	  for (newtemp = new; *newtemp != NULL; newtemp++)
-	       new_size++;
-	  for (newtemp = dua_pos; *newtemp != NULL; newtemp++)
-	       new_size++;
-
-	  /* Allocate enough space for both arrays, remembering that
-	   * both currently have a NULL terminator, and the new array
-	   * will only need one
-	   */
-	  if ((new = (char **) realloc (new, (sizeof (char *) * new_size)
-					- sizeof (char *)))
-	      == NULL)
-	       fatal (DUA_ERR_MALLOC);
-
-	  for (newtemp = new; *newtemp != NULL; newtemp++)
-	       /* EMPTY */ ;
-	  for (oldtemp = dua_pos; *oldtemp != NULL; oldtemp++) {
-	       if ((*newtemp = (char *) malloc (strlen (*oldtemp) + 1))
-		   == NULL)
-		    fatal (DUA_ERR_MALLOC);
-	       strcpy (*newtemp, *oldtemp);
-	       newtemp++;
-	  }
-	
-	  /* NULL terminate the array */
-	  *newtemp = NULL;
-
-	  free (dua_pos);	/* Don't need this anymore */
-	  dua_pos = new;
-	  return 1;
-     }
+  register char **newtemp, **oldtemp;
+  char **new;
+  u_int new_size;
+  
+  if (*dn == '@') {
+    /* Move to an absolute position in the DIT */
+    free_vector (session->dua_pos);
+    
+    if (strlen (dn) == 1) {
+      /* Move to root */
+      if ((session->dua_pos = (char **) malloc (sizeof (char **))) == NULL)
+	fatal (DUA_ERR_MALLOC);
+      *session->dua_pos = NULL;
+      return 1;
+    }
+    
+    /* Make a stack by calling dishdn2dn () */
+    session->dua_pos = dishdn2dn (dn);
+    return 1;
+    
+  } else {
+    /* Move relative to our current position. Create
+     * a new stack like above, but append current stack
+     * to end by copying the strings.
+     */
+    new = dishdn2dn (dn);
+    
+    new_size = 1;
+    /* Count number of elements in new */
+    for (newtemp = new; *newtemp != NULL; newtemp++)
+      new_size++;
+    for (newtemp = session->dua_pos; *newtemp != NULL; newtemp++)
+      new_size++;
+    
+    /* Allocate enough space for both arrays, remembering that
+     * both currently have a NULL terminator, and the new array
+     * will only need one
+     */
+    if ((new = (char **)realloc(new, (sizeof (char *) *new_size) 
+				- sizeof (char *))) == NULL)
+      fatal (DUA_ERR_MALLOC);
+    
+    for (newtemp = new; *newtemp != NULL; newtemp++)
+      /* EMPTY */ ;
+    for (oldtemp = session->dua_pos; *oldtemp != NULL; oldtemp++) {
+      if ((*newtemp = (char *) malloc (strlen (*oldtemp) + 1)) == NULL)
+	fatal (DUA_ERR_MALLOC);
+      strcpy (*newtemp, *oldtemp);
+      newtemp++;
+    }
+    
+    /* NULL terminate the array */
+    *newtemp = NULL;
+    
+    free (session->dua_pos);	/* Don't need this anymore */
+    session->dua_pos = new;
+    return 1;
+  }
 }
 
 /************************************************************************
@@ -284,13 +285,12 @@ char *dn;
 * Side effects: sets the global variable `dua_errstr'.
 ************************************************************************/
 static int
-set_ldap_err (err)
+set_ldap_err (session,err)
+ldap_session_t *session;
 int err;
 {
-     extern char *dua_errstr;
-
-     dua_errstr = ldap_err2string (err);
-     return 0;
+  session->dua_errstr = ldap_err2string (err);
+  return 0;
 }
 
 /************************************************************************
@@ -303,20 +303,20 @@ int
 dua_quoteme (value)
 char *value;
 {
-     register char *temp;
+  register char *temp;
 
-     for (temp = value; *temp != '\0'; temp++) {
-	  switch (*temp) {
-	  case ',':
-	  case '=':
-	  case '+':
-	  case '>':
-	  case '#':
-	  case ';':
-	       return 1;
-	  }
-     }
-     return 0;
+  for (temp = value; *temp != '\0'; temp++) {
+    switch (*temp) {
+    case ',':
+    case '=':
+    case '+':
+    case '>':
+    case '#':
+    case ';':
+      return 1;
+    }
+  }
+  return 0;
 }
 
 /************************************************************************
@@ -328,77 +328,79 @@ char *value;
 * Side effects: may call fatal ().
 ************************************************************************/
 char *
-dua_mkdn (dn)
+dua_mkdn (session,dn)
+ldap_session_t *session;
 char *dn;
 {
-     extern char **dua_pos;
-     extern char *dua_dn;
-     char **dncomp;
-     char **dncompptr;
-     char *temp;
-     char *attribute, *value;
-     u_int size, asize, vsize;
-     int beenhere = 0;
-
-     if (dua_dn != NULL) {
-	  /* free any old space alloc'd for dua_dn */
-	  free (dua_dn);
-	  dua_dn = NULL;
-     }
-
-     if ((*dn == '@' && strlen (dn) == 1) || strlen (dn) == 0)
-	  return NULL;
-
-     dncomp = dishdn2dn (dn);
-     size = asize = vsize = 0;
-
+  char **dncomp;
+  char **dncompptr;
+  char *temp;
+  char *attribute, *value;
+  u_int size, asize, vsize;
+  int beenhere = 0;
+  
+  if (session->dua_dn != NULL) {
+    /* free any old space alloc'd for dua_dn */
+    free (session->dua_dn);
+    session->dua_dn = NULL;
+  }
+  
+  if ((*dn == '@' && strlen (dn) == 1) || strlen (dn) == 0)
+    return NULL;
+  
+  dncomp = dishdn2dn (dn);
+  size = asize = vsize = 0;
+  
  vamp:
-     for (dncompptr = dncomp; *dncompptr != NULL; dncompptr++) {
-	  temp = index (*dncompptr, '=');
-	  asize = (u_int) (temp - *dncompptr);
-	  vsize = strlen (temp + 1);
-	  if ((attribute = (char *) malloc (asize + 1)) == NULL)
-	       fatal (DUA_ERR_MALLOC);
-	  if ((value = (char *) malloc (vsize + 1)) == NULL)
-	       fatal (DUA_ERR_MALLOC);
-	  strncpy (attribute, *dncompptr, asize);
-	  attribute [asize] = '\0';
-	  strcpy (value, temp + 1);
-	  if (dua_quoteme (value)) {
-	       size += strlen (*dncompptr) + 3;
-	       if (dua_dn == NULL) {
-		    if ((dua_dn = (char *) malloc (size + 1)) == NULL)
-			 fatal (DUA_ERR_MALLOC);
-		    (void) sprintf (dua_dn, "%s=\"%s\"", attribute, value);
-	       } else {
-		    if ((dua_dn = (char *) realloc (dua_dn, strlen (dua_dn)
-						    + size)) == NULL)
-			 fatal (DUA_ERR_MALLOC);
-		    (void) sprintf (dua_dn, "%s,%s=\"%s\"", dua_dn,
-				    attribute, value);
-	       }
-	  } else {
-	       size += strlen (*dncompptr) + 1;
-	       if (dua_dn == NULL) {
-		    if ((dua_dn = (char *) malloc (size + 1)) == NULL)
-			 fatal (DUA_ERR_MALLOC);
-		    (void) sprintf (dua_dn, "%s=%s", attribute, value);
-	       } else {
-		    if ((dua_dn = (char *) realloc (dua_dn, strlen (dua_dn)
-						    + size)) == NULL)
-			 fatal (DUA_ERR_MALLOC);
-		    (void) sprintf (dua_dn, "%s,%s=%s", dua_dn,
-				    attribute, value);
-	       }
-	  }
-     }
-
-     if (*dn != '@' && !beenhere) {
-	  beenhere++;
-	  dncomp = dua_pos;
-	  goto vamp;
-     }
-     return dua_dn;
+  for (dncompptr = dncomp; *dncompptr != NULL; dncompptr++) {
+    temp = index (*dncompptr, '=');
+    asize = (u_int) (temp - *dncompptr);
+    vsize = strlen (temp + 1);
+    if ((attribute = (char *) malloc (asize + 1)) == NULL)
+      fatal (DUA_ERR_MALLOC);
+    if ((value = (char *) malloc (vsize + 1)) == NULL)
+      fatal (DUA_ERR_MALLOC);
+    strncpy (attribute, *dncompptr, asize);
+    attribute [asize] = '\0';
+    strcpy (value, temp + 1);
+    if (dua_quoteme (value)) {
+      size += strlen (*dncompptr) + 3;
+      if (session->dua_dn == NULL) {
+	if ((session->dua_dn = (char *) malloc (size + 1)) == NULL)
+	  fatal (DUA_ERR_MALLOC);
+	(void) sprintf (session->dua_dn, "%s=\"%s\"", attribute, value);
+      } else {
+	if ((session->dua_dn = (char *) realloc (session->dua_dn, 
+						 strlen (session->dua_dn)
+						 + size)) == NULL)
+	  fatal (DUA_ERR_MALLOC);
+	(void) sprintf (session->dua_dn, "%s,%s=\"%s\"", 
+			session->dua_dn, attribute, value);
+      }
+    } else {
+      size += strlen (*dncompptr) + 1;
+      if (session->dua_dn == NULL) {
+	if ((session->dua_dn = (char *) malloc (size + 1)) == NULL)
+	  fatal (DUA_ERR_MALLOC);
+	(void) sprintf (session->dua_dn, "%s=%s", attribute, 
+			value);
+      } else {
+	if ((session->dua_dn = (char *) realloc (session->dua_dn,
+						 strlen (session->dua_dn)
+						 + size)) == NULL)
+	  fatal (DUA_ERR_MALLOC);
+	(void) sprintf (session->dua_dn, "%s,%s=%s",
+			session->dua_dn, attribute, value);
+      }
+    }
+  }
+  
+  if (*dn != '@' && !beenhere) {
+    beenhere++;
+    dncomp = session->dua_pos;
+    goto vamp;
+  }
+  return session->dua_dn;
 }
 
 
@@ -414,28 +416,28 @@ atlist_t **atlist;
 char *attr;
 char *value;
 {
-     register atlist_t *temp;
-     
-     if (*atlist == NULL) {
-	  /* allocate a new list head */
-	  if ((*atlist = (atlist_t *) malloc (sizeof (atlist_t))) == NULL)
-	       fatal (DUA_ERR_MALLOC);
-
-	  temp = *atlist;
-     } else {
-	  for (temp = *atlist; temp->next != NULL; temp = temp->next)
-	       /* EMPTY */ ;
-	  if ((temp->next = (atlist_t *) malloc (sizeof (atlist_t))) == NULL)
-	       fatal (DUA_ERR_MALLOC);
-
-	  temp = temp->next;
-     }
-     
-     temp->attr = strdup (attr);
-     temp->value = strdup (value);
-     temp->next = NULL;
-
-     return;
+  register atlist_t *temp;
+  
+  if (*atlist == NULL) {
+    /* allocate a new list head */
+    if ((*atlist = (atlist_t *) malloc (sizeof (atlist_t))) == NULL)
+      fatal (DUA_ERR_MALLOC);
+    
+    temp = *atlist;
+  } else {
+    for (temp = *atlist; temp->next != NULL; temp = temp->next)
+      /* EMPTY */ ;
+    if ((temp->next = (atlist_t *) malloc (sizeof (atlist_t))) == NULL)
+      fatal (DUA_ERR_MALLOC);
+    
+    temp = temp->next;
+  }
+  
+  temp->attr = strdup (attr);
+  temp->value = strdup (value);
+  temp->next = NULL;
+  
+  return;
 }
 
 
@@ -449,16 +451,16 @@ void
 dua_freelist (atlist)
 atlist_t *atlist;
 {
-     register atlist_t *temp;
+  register atlist_t *temp;
 
-     while (atlist != NULL) {
-	  temp = atlist->next;
-	  free (atlist->attr);
-	  free (atlist->value);
-	  free (atlist);
-	  atlist = temp;
-     }
-     return;
+  while (atlist != NULL) {
+    temp = atlist->next;
+    free (atlist->attr);
+    free (atlist->value);
+    free (atlist);
+    atlist = temp;
+  }
+  return;
 }
 
 
@@ -466,84 +468,81 @@ atlist_t *atlist;
 * dua_add
 *      Add the attribute/value pairs in `atlist' to the DIT
 *      specified by `rdn'. This code is paralleled (for the
-*      most part) in dua_modattr (). If a significant bug fix
-*      is applied to this code, check in dua_modattr () to see
+*      most part) in dua_modattr () & now dua_delattr. 
+*      If a significant bug fix is applied to this code, check
+*      in dua_modattr () & dua_delattr () to see
 *      if it also needs to be applied there.
 *
 * Side effects: none
 ************************************************************************/
 int
-dua_add (rdn, attrs)
+dua_add (session, rdn, attrs)
+ldap_session_t *session;
 char *rdn;
 atlist_t *attrs;
 {
-     extern LDAP *dua_ld;
-     register atlist_t *temp;
-     LDAPMod **mods;
-     register int i;
-     int id, retval;
-     LDAPMessage *result;
-     extern struct timeval dua_tv;
+  register atlist_t *temp;
+  LDAPMod **mods;
+  register int i;
+  int id, retval;
+  LDAPMessage *result;
 
-     /* start out with enough space for 20 attributes,
-      * we'll malloc more when we need it.
-      */
-     if ((mods = (LDAPMod **) malloc (sizeof (LDAPMod)*20))
-	== NULL)
-	  fatal (DUA_ERR_MALLOC);
+  /* start out with enough space for 20 attributes,
+   * we'll malloc more when we need it.
+   */
+  if ((mods = (LDAPMod **) malloc (sizeof (LDAPMod)*20)) == NULL)
+    fatal (DUA_ERR_MALLOC);
+  
+  i = 0;
+  for (temp = attrs; temp != NULL; temp = temp->next) {
+    /* malloc more pointer space if we're on a 
+     * multiple of 20
+     */
+    if (i % 20 == 0)
+      if ((mods = (LDAPMod **) realloc (mods, sizeof (LDAPMod)*20)) == NULL)
+	fatal (DUA_ERR_MALLOC);
 
-     i = 0;
-     for (temp = attrs; temp != NULL; temp = temp->next) {
-	  /* malloc more pointer space if we're on a 
-           * multiple of 20
-	   */
-	  if (i % 20 == 0)
-	       if ((mods = (LDAPMod **) realloc (mods, sizeof (LDAPMod)*20))
-		  == NULL)
-		    fatal (DUA_ERR_MALLOC);
-
-	  /* malloc space for this mod */
-	  if ((mods[i] = (LDAPMod *) malloc (sizeof (LDAPMod)))
-	     == NULL)
-	       fatal (DUA_ERR_MALLOC);
-
-
-	  /* initialize all fields to non-garbage values */
-	  mods[i]->mod_op = LDAP_MOD_ADD;
-	  mods[i]->mod_next = (LDAPMod *) 0;
-	  /*
-           * this is a pointer assignment only, do not free
-	   * the space pointed to by temp, as it will be free'd
-	   * by dua_freelist () by our parent caller.
-	   */
-	  mods[i]->mod_type = temp->attr;
-	  mods[i]->mod_values = split_multi (temp->value);
-
-	  i++;
-     }
-
-     /* NULL terminate the end of the mods list */
-     mods[i] = (LDAPMod *) 0;
-
-     /* initiate the add operation */
-     id = ldap_add (dua_ld, dua_mkdn (rdn), mods);
-
-     /* wait for result */
-     retval = 1;
-     retval = ldap_result (dua_ld, id, 0, &dua_tv, &result);
-
-     /* check result error */
-     if (ldap_result2error (dua_ld, result, 1) != LDAP_SUCCESS) {
-	  set_ldap_err (dua_ld->ld_errno);
-	  retval = 0;
-     }
-
-     /* free the memory associated with the mods array */
-     for (--i; i > 0; i--) {
-	  free_vector (mods[i]->mod_values);
-	  free (mods[i]);
-     }
-     return retval;
+    /* malloc space for this mod */
+    if ((mods[i] = (LDAPMod *) malloc (sizeof (LDAPMod))) == NULL)
+      fatal (DUA_ERR_MALLOC);
+    
+    
+    /* initialize all fields to non-garbage values */
+    mods[i]->mod_op = LDAP_MOD_ADD;
+    mods[i]->mod_next = (LDAPMod *) 0;
+    /*
+     * this is a pointer assignment only, do not free
+     * the space pointed to by temp, as it will be free'd
+     * by dua_freelist () by our parent caller.
+     */
+    mods[i]->mod_type = temp->attr;
+    mods[i]->mod_values = split_multi (temp->value);
+    
+    i++;
+  }
+  
+  /* NULL terminate the end of the mods list */
+  mods[i] = (LDAPMod *) 0;
+  
+  /* initiate the add operation */
+  id = ldap_add (session->dua_ld, dua_mkdn(session,rdn), mods);
+  
+  /* wait for result */
+  retval = 1;
+  retval = ldap_result (session->dua_ld, id, 0, &session->dua_tv, &result);
+  
+  /* check result error */
+  if (ldap_result2error (session->dua_ld, result, 1) != LDAP_SUCCESS) {
+    set_ldap_err (session,session->dua_ld->ld_errno);
+    retval = 0;
+  }
+  
+  /* free the memory associated with the mods array */
+  for (--i; i > 0; i--) {
+    free_vector (mods[i]->mod_values);
+    free (mods[i]);
+  }
+  return retval;
 }
 
 
@@ -551,84 +550,159 @@ atlist_t *attrs;
 * dua_modattr
 *      Modify the attributes for rdn given in attrs.
 *      This code should parallel (for the most part) that
-*      in dua_add (). If a significant bug fix is required in
-*      in either function, then check the other function
+*      in dua_add () & dua_delattr. If a significant bug fix is required in
+*      in either function, then check the other functions
 *      to see if it needs to be changed there.
 *
 * Side effects: may call fatal ().
 ************************************************************************/
 int 
-dua_modattr (rdn, attrs)
+dua_modattr (session, rdn, attrs)
+ldap_session_t *session;
 char *rdn;
 atlist_t *attrs;
 {
-     extern LDAP *dua_ld;
-     register atlist_t *temp;
-     LDAPMod **mods;
-     register int i;
-     int id, retval;
-     LDAPMessage *result;
-     extern struct timeval dua_tv;
+  register atlist_t *temp;
+  LDAPMod **mods;
+  register int i;
+  int id, retval;
+  LDAPMessage *result;
 
-     /* start out with enough space for 20 attributes,
-      * we'll malloc more when we need it.
-      */
-     if ((mods = (LDAPMod **) malloc (sizeof (LDAPMod)*20))
-	== NULL)
-	  fatal (DUA_ERR_MALLOC);
+  /* start out with enough space for 20 attributes,
+   * we'll malloc more when we need it.
+   */
+  if ((mods = (LDAPMod **) malloc (sizeof (LDAPMod)*20)) == NULL)
+    fatal (DUA_ERR_MALLOC);
 
-     i = 0;
-     for (temp = attrs; temp != NULL; temp = temp->next) {
-	  /* malloc more pointer space if we're on a 
-           * multiple of 20
-	   */
-	  if (i % 20 == 0)
-	       if ((mods = (LDAPMod **) realloc (mods, sizeof (LDAPMod)*20))
-		  == NULL)
-		    fatal (DUA_ERR_MALLOC);
+  i = 0;
+  for (temp = attrs; temp != NULL; temp = temp->next) {
+    /* malloc more pointer space if we're on a 
+     * multiple of 20
+     */
+    if (i % 20 == 0)
+      if ((mods = (LDAPMod **) realloc (mods, sizeof (LDAPMod)*20)) == NULL)
+	fatal (DUA_ERR_MALLOC);
 
-	  /* malloc space for this mod */
-	  if ((mods[i] = (LDAPMod *) malloc (sizeof (LDAPMod)))
-	     == NULL)
-	       fatal (DUA_ERR_MALLOC);
+    /* malloc space for this mod */
+    if ((mods[i] = (LDAPMod *) malloc (sizeof (LDAPMod))) == NULL)
+      fatal (DUA_ERR_MALLOC);
+
+    /* initialize all fields to non-garbage values */
+    mods[i]->mod_op = LDAP_MOD_REPLACE;
+    mods[i]->mod_next = (LDAPMod *) 0;
+    /*
+     * this is a pointer assignment only, do not free
+     * the space pointed to by temp, as it will be free'd
+     * by dua_freelist () by our parent caller.
+     */
+    mods[i]->mod_type = temp->attr;
+    mods[i]->mod_values = split_multi (temp->value);
+    
+    i++;
+  }
+
+  /* NULL terminate the end of the mods list */
+  mods[i] = (LDAPMod *) 0;
+
+  /* initiate the add operation */
+  id = ldap_modify (session->dua_ld, dua_mkdn(session,rdn), mods);
+  
+  /* wait for result */
+  retval = 1;
+  retval = ldap_result (session->dua_ld, id, 0, &session->dua_tv, &result);
+  
+  /* check result error */
+  if (ldap_result2error (session->dua_ld, result, 1) != LDAP_SUCCESS) {
+    set_ldap_err (session,session->dua_ld->ld_errno);
+    retval = 0;
+  }
+  
+  /* free the memory associated with the mods array */
+  for (--i; i > 0; i--) {
+    free_vector (mods[i]->mod_values);
+    free (mods[i]);
+  }
+  return retval;
+}
 
 
-	  /* initialize all fields to non-garbage values */
-	  mods[i]->mod_op = LDAP_MOD_REPLACE;
-	  mods[i]->mod_next = (LDAPMod *) 0;
-	  /*
-           * this is a pointer assignment only, do not free
-	   * the space pointed to by temp, as it will be free'd
-	   * by dua_freelist () by our parent caller.
-	   */
-	  mods[i]->mod_type = temp->attr;
-	  mods[i]->mod_values = split_multi (temp->value);
+/************************************************************************
+* dua_delattr
+*      Delete the attributes for rdn given in attrs.
+*      This code should parallel (for the most part) that
+*      in dua_add () & dua_modattr. If a significant bug fix is required in
+*      in either function, then check the other functions
+*      to see if it needs to be changed there.
+*
+* Side effects: may call fatal ().
+************************************************************************/
+int 
+dua_delattr (session, rdn, attrs)
+ldap_session_t *session;
+char *rdn;
+atlist_t *attrs;
+{
+  register atlist_t *temp;
+  LDAPMod **mods;
+  register int i;
+  int id, retval;
+  LDAPMessage *result;
 
-	  i++;
-     }
+  /* start out with enough space for 20 attributes,
+   * we'll malloc more when we need it.
+   */
+  if ((mods = (LDAPMod **) malloc (sizeof (LDAPMod)*20)) == NULL)
+    fatal (DUA_ERR_MALLOC);
 
-     /* NULL terminate the end of the mods list */
-     mods[i] = (LDAPMod *) 0;
+  i = 0;
+  for (temp = attrs; temp != NULL; temp = temp->next) {
+    /* malloc more pointer space if we're on a 
+     * multiple of 20
+     */
+    if (i % 20 == 0)
+      if ((mods = (LDAPMod **) realloc (mods, sizeof (LDAPMod)*20)) == NULL)
+	fatal (DUA_ERR_MALLOC);
 
-     /* initiate the add operation */
-     id = ldap_modify (dua_ld, dua_mkdn (rdn), mods);
+    /* malloc space for this mod */
+    if ((mods[i] = (LDAPMod *) malloc (sizeof (LDAPMod))) == NULL)
+      fatal (DUA_ERR_MALLOC);
 
-     /* wait for result */
-     retval = 1;
-     retval = ldap_result (dua_ld, id, 0, &dua_tv, &result);
+    /* initialize all fields to non-garbage values */
+    mods[i]->mod_op = LDAP_MOD_DELETE;
+    mods[i]->mod_next = (LDAPMod *) 0;
+    /*
+     * this is a pointer assignment only, do not free
+     * the space pointed to by temp, as it will be free'd
+     * by dua_freelist () by our parent caller.
+     */
+    mods[i]->mod_type = temp->attr;
+    mods[i]->mod_values = NULL;
+    
+    i++;
+  }
 
-     /* check result error */
-     if (ldap_result2error (dua_ld, result, 1) != LDAP_SUCCESS) {
-	  set_ldap_err (dua_ld->ld_errno);
-	  retval = 0;
-     }
+  /* NULL terminate the end of the mods list */
+  mods[i] = (LDAPMod *) 0;
 
-     /* free the memory associated with the mods array */
-     for (--i; i > 0; i--) {
-	  free_vector (mods[i]->mod_values);
-	  free (mods[i]);
-     }
-     return retval;
+  /* initiate the add operation */
+  id = ldap_modify (session->dua_ld, dua_mkdn(session,rdn), mods);
+  
+  /* wait for result */
+  retval = 1;
+  retval = ldap_result (session->dua_ld, id, 0, &session->dua_tv, &result);
+  
+  /* check result error */
+  if (ldap_result2error (session->dua_ld, result, 1) != LDAP_SUCCESS) {
+    set_ldap_err (session,session->dua_ld->ld_errno);
+    retval = 0;
+  }
+  
+  /* free the memory associated with the mods array */
+  for (--i; i > 0; i--) {
+    free_vector (mods[i]->mod_values);
+    free (mods[i]);
+  }
+  return retval;
 }
 
 
@@ -642,13 +716,13 @@ char *
 ntoa (n)
 int n;
 {
-     char *temp;
+  char *temp;
 
-     if ((temp = (char *) malloc (11)) == NULL) 
-	  fatal (DUA_ERR_MALLOC);
-
-     sprintf (temp, "%d", n);
-     return (temp);
+  if ((temp = (char *) malloc (11)) == NULL) 
+    fatal (DUA_ERR_MALLOC);
+  
+  sprintf (temp, "%d", n);
+  return (temp);
 }
 
 
@@ -670,7 +744,8 @@ int n;
 *      'attrs' is the linked-list to return the results in.
 ************************************************************************/
 int
-dua_find (rdn, filter, scope, find, all, attrs)
+dua_find (session, rdn, filter, scope, find, all, attrs)
+ldap_session_t *session;
 char *rdn;
 char *filter;
 int scope;
@@ -678,113 +753,114 @@ int find;
 int all;
 atlist_t **attrs;
 {
-     extern LDAP *dua_ld;
-     int id, retval;
-     register int i, num;
-     LDAPMessage *result, *entry;
-     BerElement *berptr;
-     char *attribute;
-     char **values;
-     char *temp;
-     int size;
+  int id, retval;
+  register int i, num;
+  LDAPMessage *result, *entry;
+  BerElement *berptr;
+  char *attribute;
+  char **values;
+  char *temp;
+  int size;
+  
+  /* figure out search type */
+  if (find)
+    scope = scope ? LDAP_SCOPE_SUBTREE : LDAP_SCOPE_ONELEVEL;
+  else {
+    scope = LDAP_SCOPE_BASE;
+    filter = (filter == NULL ? "objectclass=*" : filter);
+  }
+  
+  /* initiate search request */
+  id = ldap_search (session->dua_ld, dua_mkdn(session,rdn), scope, 
+		    filter, NULL, 0);
 
-     /* figure out search type */
-     if (find)
-	  scope = scope ? LDAP_SCOPE_SUBTREE : LDAP_SCOPE_ONELEVEL;
-     else {
-	  scope = LDAP_SCOPE_BASE;
-	  filter = (filter == NULL ? "objectclass=*" : filter);
-     }
+  result = entry = NULL;
 
-     /* initiate search request */
-     id = ldap_search (dua_ld, dua_mkdn (rdn), scope, filter, NULL, 0);
+  /* collect responses */
+  i = 0;
+  while ((retval = ldap_result (session->dua_ld, id, 1, &session->dua_tv,
+				&result)) == 0) {
+    i++;
+    if (i > DUA_GIVEUP)
+      break;
+  }
 
-     result = entry = NULL;
-
-     /* collect responses */
-     i = 0;
-     while ((retval = ldap_result (dua_ld, id, 1, &dua_tv, &result)) == 0) {
-	  i++;
-	  if (i > DUA_GIVEUP)
-	       break;
-     }
-
-     /* check for error conditions, return to caller if necessary.
-      * if no error conditions exist, parse out results.
-      */
-     if (retval < 0) {
-	  /* error condition */
-	  ldap_result2error (dua_ld, result, 1);
-	  set_ldap_err (dua_ld->ld_errno);
+  /* check for error conditions, return to caller if necessary.
+   * if no error conditions exist, parse out results.
+   */
+  if (retval < 0) {
+    /* error condition */
+    ldap_result2error (session->dua_ld, result, 1);
+    set_ldap_err (session,session->dua_ld->ld_errno);
+    return 0;
+  } else { 
+    /* got something, parse it */
+    if ((entry = ldap_first_entry (session->dua_ld, result)) == NULL) {
+      set_ldap_err (session,session->dua_ld->ld_errno);
+      return 0;
+    }
+    num = 0;
+    while (entry != NULL) {
+      if (all == 0 && find) {
+	attribute = ntoa (num);
+	temp = ldap_get_dn (session->dua_ld, entry);
+	dua_addpair (attrs, attribute, temp);
+	num++;
+	free (attribute);
+	free (temp);
+	entry = ldap_next_entry (session->dua_ld, entry);
+	continue;	/* next loop */
+      }
+      attribute = ldap_first_attribute (session->dua_ld, entry, &berptr);
+      while (attribute != NULL) {
+	if ((values = ldap_get_values (session->dua_ld, entry, attribute))
+	    == NULL) {
+	  set_ldap_err (session,session->dua_ld->ld_errno);
 	  return 0;
-     } else { 
-	  /* got something, parse it */
-	  if ((entry = ldap_first_entry (dua_ld, result)) == NULL) {
-	       set_ldap_err (dua_ld->ld_errno);
-	       return 0;
+	}
+	
+	/* calculate the size of the string needed to 
+	 * contain all attribute values returned 
+	 */
+	size = 0;
+	for (i = 0; ; i++) {
+	  if (values[i] == NULL)
+	    break;
+	  size += strlen (values[i]);
+	}
+	/* add space for separators and terminator */
+	size += i + 1;
+	
+	/* allocate our temp area */
+	if ((temp = (char *) malloc (size)) == NULL)
+	  fatal (DUA_ERR_MALLOC);
+	
+	for (i = 0; ; i++) {
+	  if (i == 0)
+	    strcpy (temp, values[0]);
+	  else {
+	    if (values[i] == NULL)
+	      break;
+	    else
+	      sprintf (temp, "%s&%s",
+		       temp, values[i]);
 	  }
-	  num = 0;
-	  while (entry != NULL) {
-	       if (all == 0 && find) {
-		    attribute = ntoa (num);
-		    temp = ldap_get_dn (dua_ld, entry);
-		    dua_addpair (attrs, attribute, temp);
+	}
+	
+	dua_addpair (attrs, attribute, temp);
 		    num++;
-		    free (attribute);
-		    free (temp);
-		    entry = ldap_next_entry (dua_ld, entry);
-		    continue;	/* next loop */
-	       }
-	       attribute = ldap_first_attribute (dua_ld, entry, &berptr);
-	       while (attribute != NULL) {
-		    if ((values = ldap_get_values (dua_ld, entry, attribute))
-		       == NULL) {
-			 set_ldap_err (dua_ld->ld_errno);
-			 return 0;
-		    }
-
-		    /* calculate the size of the string needed to 
-		     * contain all attribute values returned 
-		     */
-		    size = 0;
-		    for (i = 0; ; i++) {
-			 if (values[i] == NULL)
-			      break;
-			 size += strlen (values[i]);
-		    }
-		    /* add space for separators and terminator */
-		    size += i + 1;
-		    
-		    /* allocate our temp area */
-		    if ((temp = (char *) malloc (size)) == NULL)
-			 fatal (DUA_ERR_MALLOC);
-		    
-		    for (i = 0; ; i++) {
-			 if (i == 0)
-			      strcpy (temp, values[0]);
-			 else {
-			      if (values[i] == NULL)
-				   break;
-			      else
-				   sprintf (temp, "%s&%s",
-					   temp, values[i]);
-			 }
-		    }
-		    
-		    dua_addpair (attrs, attribute, temp);
-		    num++;
-		    /* free up all memory we no longer need */
-		    free (temp);
-		    ldap_value_free (values); 
-		    attribute = ldap_next_attribute (dua_ld, entry, berptr);
-	       }
-	       entry = ldap_next_entry (dua_ld, entry);
-	  }
-	  /* free up memory allocated by ldap routines */
-	  free (entry);
-	  free (result);
-	  return num;
-     }
+	/* free up all memory we no longer need */
+	free (temp);
+	ldap_value_free (values); 
+	attribute = ldap_next_attribute (session->dua_ld, entry, berptr);
+      }
+      entry = ldap_next_entry (session->dua_ld, entry);
+    }
+    /* free up memory allocated by ldap routines */
+    free (entry);
+    free (result);
+    return num;
+  }
 }
 
 
@@ -799,45 +875,45 @@ char **
 split_multi (val)
 char *val;
 {
-     char *vptr, *uptr;
-     char **res;
-     u_int ssize, len;
-     register int i;
+  char *vptr, *uptr;
+  char **res;
+  u_int ssize, len;
+  register int i;
 
-     /* Initialize to some heap address, since some systems
-      * can't cope with passing NULL to realloc()
-      */
-     if ((res = (char **) malloc (sizeof (char **))) == NULL)
-	  fatal (DUA_ERR_MALLOC);
-
-     ssize = sizeof (char *) * 2;
-     uptr = val;
-     for (i = 0; ; i++) {
-	  if ((vptr = index (uptr, '&')) == NULL) {
-	       if ((res = (char **) realloc (res, ssize))
-		   == NULL) 
-		    fatal (DUA_ERR_MALLOC);
-	       if ((res[i] = (char *) malloc (strlen (uptr) + 1))
-		   == NULL)
-		    fatal (DUA_ERR_MALLOC);
-	       strcpy (res[i], uptr);
-	       res[i + 1] = NULL;
-	       
-	       return (res);
-	  }
-
-	  len = (u_int) vptr - (u_int) uptr;
-	  ssize += sizeof (char *);
-	  if ((res = (char **) realloc (res, ssize)) == NULL) 
-	       fatal (DUA_ERR_MALLOC);
-	  if ((res[i] = (char *) malloc (len + 1)) == NULL)
-	       fatal (DUA_ERR_MALLOC);
-	  strncpy (res[i], uptr, len);
-	  res[i][len] = '\0';
-	  res[i + 1] = NULL;
-	  
-	  uptr = ++vptr;
-     }
+  /* Initialize to some heap address, since some systems
+   * can't cope with passing NULL to realloc()
+   */
+  if ((res = (char **) malloc (sizeof (char **))) == NULL)
+    fatal (DUA_ERR_MALLOC);
+  
+  ssize = sizeof (char *) * 2;
+  uptr = val;
+  for (i = 0; ; i++) {
+    if ((vptr = index (uptr, '&')) == NULL) {
+      if ((res = (char **) realloc (res, ssize))
+	  == NULL) 
+	fatal (DUA_ERR_MALLOC);
+      if ((res[i] = (char *) malloc (strlen (uptr) + 1))
+	  == NULL)
+	fatal (DUA_ERR_MALLOC);
+      strcpy (res[i], uptr);
+      res[i + 1] = NULL;
+      
+      return (res);
+    }
+    
+    len = (u_int) vptr - (u_int) uptr;
+    ssize += sizeof (char *);
+    if ((res = (char **) realloc (res, ssize)) == NULL) 
+      fatal (DUA_ERR_MALLOC);
+    if ((res[i] = (char *) malloc (len + 1)) == NULL)
+      fatal (DUA_ERR_MALLOC);
+    strncpy (res[i], uptr, len);
+    res[i][len] = '\0';
+    res[i + 1] = NULL;
+    
+    uptr = ++vptr;
+  }
 }
 
 
@@ -850,17 +926,17 @@ void
 free_vector (vec)
 char **vec;
 {
-     register char **vptr;
+  register char **vptr;
 
-     if (vec != NULL) {
-	  for (vptr = vec; *vptr != NULL; vptr++) {
-	       free (*vptr);
-	  }
-	  
-	  free (vec);
-     }
-
-     return;
+  if (vec != NULL) {
+    for (vptr = vec; *vptr != NULL; vptr++) {
+      free (*vptr);
+    }
+    
+    free (vec);
+  }
+  
+  return;
 }
 
 /************************************************************************
@@ -874,55 +950,54 @@ char **
 dishdn2dn (dn)
 char *dn;
 {
-     char *tempdn, *newdn;
-     char **result;
-     int rev, done;
-     u_int size, res_size;
+  char *tempdn, *newdn;
+  char **result;
+  int rev, done;
+  u_int size, res_size;
+  
+  /* malloc space for at least one element */
+  if ((result = (char **) malloc (sizeof (char *) * 2)) == NULL)
+    fatal (DUA_ERR_MALLOC);
+  res_size = 1;
+  
+  /* Check for NULL or empty DN and return */
+  if (dn == NULL || (*dn == '@' && strlen (dn) == 1)) {
+    *result = NULL;
+    return result;
+  }
+  
+  /* adjust DN appropriately */
+  if ((newdn = (char *) malloc (strlen (dn) + 1)) == NULL)
+    fatal (DUA_ERR_MALLOC);
+  
+  if (*dn == '@') 
+    strcpy (newdn, dn + 1);
+  else
+    strcpy (newdn, dn);
+  
+  
+  done = 0;
+  for (rev = 0;; rev++) {
+    if ((tempdn = rindex (newdn, '@')) == NULL) {
+      tempdn = newdn;
+      done++;
+    }
+    else {
+      *tempdn = '\0';
+      tempdn++;
+    }
+    size = strlen (tempdn);
+    
+    if ((result = (char **) realloc (result,
+				     sizeof (char *) * ++res_size)) == NULL)
+      fatal (DUA_ERR_MALLOC);	
 
-     /* malloc space for at least one element */
-     if ((result = (char **) malloc (sizeof (char *) * 2)) == NULL)
-	  fatal (DUA_ERR_MALLOC);
-     res_size = 1;
-
-     /* Check for NULL or empty DN and return */
-     if (dn == NULL || (*dn == '@' && strlen (dn) == 1)) {
-	  *result = NULL;
-	  return result;
-     }
-
-     /* adjust DN appropriately */
-     if ((newdn = (char *) malloc (strlen (dn) + 1)) == NULL)
-	  fatal (DUA_ERR_MALLOC);
-
-     if (*dn == '@') 
-	  strcpy (newdn, dn + 1);
-     else
-	  strcpy (newdn, dn);
-
-
-     done = 0;
-     for (rev = 0;; rev++) {
-	  if ((tempdn = rindex (newdn, '@')) == NULL) {
-	       tempdn = newdn;
-	       done++;
-	  }
- 	  else {
-	       *tempdn = '\0';
-	       tempdn++;
-	  }
-	  size = strlen (tempdn);
-
-	  if ((result = (char **) realloc (result,
-					   sizeof (char *) * ++res_size))
-	      == NULL)
-	       fatal (DUA_ERR_MALLOC);	
-
-	  if ((result [rev] = (char *) malloc (size + 1)) == NULL)
-	       fatal (DUA_ERR_MALLOC);
-	  strcpy (result [rev], tempdn);
-	  result [rev + 1] = NULL;
-
-	  if (done)
-	       return result;
-     }
+    if ((result [rev] = (char *) malloc (size + 1)) == NULL)
+      fatal (DUA_ERR_MALLOC);
+    strcpy (result [rev], tempdn);
+    result [rev + 1] = NULL;
+    
+    if (done)
+      return result;
+  }
 }

@@ -13,12 +13,12 @@ INCLUDES= -I/bham/pd/packages/ldap/include $(PERLINCL)
 DEFINES= -O -Kpic -DSVR4
 CFLAGS= $(DEFINES) $(INCLUDES)
 
-all: $(MYLIB) 
+all: $(MYLIB)
 
 $(MYLIB): $(OBJS)
 	ar cr $@ $(OBJS)
 
-$(MYFUNC).o: $(MYFUNC).c
+$(MYFUNC).o: $(MYFUNC).c $(MYFUNC).h
 
 tidy:
 	rm -f core *.o *~

@@ -6,14 +6,14 @@ WriteMakefile(
     'VERSION_FROM' => 'Dua.pm', # finds $VERSION
     'LIBS'	=> ['-L/bham/pd/packages/ldap/lib -lldap -llber'], # e.g.,'-lm' 
     'DEFINE'	=> '',     # e.g., '-DHAVE_SOMETHING' 
-    'INC'	=> '-Idualib',     # e.g., '-I/usr/include/other' 
+    'INC'	=> '-Idualib -I/bham/pd/packages/ldap/include', 
     'MYEXTLIB'  => 'dualib/libdua$(LIB_EXT)',
     'clean'      => { FILES => 'dualib/*.o dualib/*.a' },
 );
 
 sub MY::postamble {
 '
-$(MYEXTLIB): dualib/Makefile
+$(MYEXTLIB): dualib/Makefile dualib/dua.c dualib/dua.h
 	cd dualib && $(MAKE)
 
 ';
